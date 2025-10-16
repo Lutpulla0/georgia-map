@@ -338,17 +338,20 @@ function initMap() {
 
   // 载入你导出的 Google Earth 边界文件（KML）
   // 如果 KML 文件与 index.html 同目录，只需写文件名即可
-  const kmlLayer = omnivore.kml("georgia_13th.kml")
+ const kmlLayer = omnivore.kml("https://lutpulla0.github.io/georgia-map/georgia_13th.kml")
     .on('ready', function() {
-      // 自动缩放视野到 KML 区域范围
+    try {
       map.fitBounds(kmlLayer.getBounds());
       console.log(" KML 文件已成功加载并显示。");
-    })
-    .on('error', function(e) {
-      console.error("KML 加载错误：", e);
-      alert("地图文件加载失败，请检查 KML 路径或文件名是否正确。");
-    })
-    .addTo(map);
+    } catch (err) {
+      console.warn(" fitBounds 失败，KML 可能为空。", err);
+    }
+  })
+  .on('error', function(e) {
+    console.error("KML 加载错误：", e);
+    alert("地图文件加载失败，请检查路径或文件内容。");
+  })
+  .addTo(map);
 
   // 初始标记（萨梅茨赫）
   marker = L.marker([41.5833, 43.2667]).addTo(map)
