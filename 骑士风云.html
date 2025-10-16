@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Leaflet 样式与脚本 -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js"></script>
+<title>十三世纪格鲁吉亚角色生成器</title>
+<style>
+  body {
+    background-color: #121212;
+    color: #e8dcc2;
+    font-family: "Georgia", serif;
+    padding: 20px;
+  }
+  h1, h2 {
+    color: #c9a44f;
+  }
+  button {
+    background-color: #3b2b17;
+    color: #f5e6c5;
+    border: 1px solid #c9a44f;
+    padding: 8px 14px;
+    margin: 8px 0;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  button:hover {
+    background-color: #c9a44f;
+    color: #1b1b1b;
+  }
+  .section {
+    margin-bottom: 25px;
+    padding: 18px;
+    border: 1px solid #3a3a3a;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+  }
+  input {
+    margin: 6px;
+    padding: 6px;
+    border: 1px solid #c9a44f;
+    border-radius: 4px;
+    background: #262626;
+    color: #f0e6d2;
+  }
+  ul { list-style: square; margin-left: 25px; }
+</style>
+</head>
+<body>
+
+<h1>十三世纪格鲁吉亚角色生成器</h1>
+
+<div class="section">
+  <h2>历史背景</h2>
+  <p>
+   公元一二三六年之后，格鲁吉亚再未安眠。
+   那一年，东方的天穹燃起金色尘烟，铁甲的洪流自里海彼岸倾泻而来。
+   蒙古人的骑兵穿越高加索的隘口，带着千里之外的命令——征服一切仍高举十字的土地。
+   格鲁吉亚王鲁斯丹派出大军，与蒙古先锋在库拉河谷交锋。
+   起初，战鼓如雷，骑士的长矛整齐如林。然而，当蒙古的箭阵降临，阵列则迅速崩塌。
+   他们分批突击、佯退再绕击，如鹰捕羔羊。不到半日，格鲁吉亚的重骑被射杀殆尽，连持剑的僧侣都倒在血泊中。
+   你侥幸从那场屠杀中活了下来。当夕阳落下，尸体堆满了山谷。
+   而国王本人在战后逃往库塔伊西——从此再未返回首都。
+   之后的岁月，王国再未统一。各地各自为政。
+  </p>
+</div>
+
+<div class="section">
+  <h2>角色基础信息</h2>
+  <p><strong>出身：</strong> 格鲁吉亚贵族（伯爵）</p>
+  <label>姓名：<input type="text" id="name" placeholder="输入角色名"></label><br>
+  <label>性别：<input type="text" id="gender" placeholder="男 / 女 / 其他"></label><br>
+  <label>年龄：<input type="number" id="age" placeholder="年龄"></label>
+</div>
+
+<div class="section">
+  <h2>基因选择（30选3）</h2>
+  <ul id="gene-list"></ul>
+  <button onclick="generateGenes()">刷新基因</button>
+</div>
+
+<div class="section">
+  <h2>技能选择（10选3）</h2>
+  <ul id="skill-list"></ul>
+  <button onclick="generateSkills()">刷新技能</button>
+</div>
+
+<div class="section">
+  <h2>家传宝物选择（5选1）</h2>
+  <ul id="relic-list"></ul>
+  <button onclick="generateRelics()">刷新宝物</button>
+  <p id="selected-relic"></p>
+</div>
+
+<div class="section">
+  <h2>荣誉与威名</h2>
+  <p>荣誉值：<span id="honor">5</span>　威名值：<span id="fame">0</span></p>
+  <textarea rows="3" cols="60" readonly>
+【荣誉值】代表角色是否符合东正教精神。若为负，将被教会视为异端，可能遭受批判、流放乃至绝罚。
+初始为5，受宝物与行为影响。
+  </textarea><br>
+  <textarea rows="3" cols="60" readonly>
+【威名值】代表角色在贵族与士兵间的声望。胜利提升威名，败北则削减。威名差距越大，浮动越剧烈。
+初始为0，受战绩与宝物影响。
+  </textarea>
+</div>
+
+<div class="section">
+  <h2>领地生成</h2>
+  <div id="region"></div>
+  <button onclick="generateRegion()">生成伯爵领信息</button>
+</div>
+<div id="map" style="height: 400px; width: 100%; border: 2px solid #555; border-radius: 10px; margin-top: 20px;"></div>
+
+<div class="section">
+  <h2>角色档案</h2>
+  <button onclick="generateProfile()">生成完整档案</button>
+  <button onclick="copyProfile()">复制到剪贴板</button><br><br>
+  <textarea id="profile-output" rows="10" class="output" readonly></textarea>
+</div>
+
+<script>
+const genePool = [
+  "高大 — 力量与威慑提升，在战场上容易吸引注意。",
+  "矮小 — 潜行与隐蔽能力提升，不易被敌人发现。",
+  "强壮 — 体能卓越，近战持续力显著增强。",
+  "敏捷 — 动作迅速，躲避与反应速度提升。",
+  "美貌 — 社交魅力高，谈判与操控他人更容易。",
+ "面相凶恶 — 令人恐惧或厌恶，但威名上升快速。",
+  "沉稳 — 情绪不易波动，指挥与冷静决策能力增强。",
+  "暴躁 — 战斗状态下攻击提升，旦失控风险高，行动会出现略微偏离。",
+  "冷血 — 残酷与理性兼具，对恐惧免疫。",
+  "热情 — 激励他人能力强，部队更容易士气上升。",
+  "聪慧 — 战略分析与学习能力强。",
+  "感知迟钝 — 不易察觉阴谋和事态的变化，但意志坚定。",
+  "耐寒 — 在高加索山地环境中体力消耗降低。",
+  "耐热 — 适应炎热平原，长途作战能力提升。",
+  "耐毒 — 不会中毒。",
+  "百病不侵 — 患上疾病的概率大幅降低。",
+  "善骑 — 骑术精湛，移动与冲锋加成。",
+  "善射 — 弓术精准，远程命中率提升。",
+  "嗅觉灵敏 — 易察觉埋伏、毒药、野兽威胁。",
+  "听觉敏锐 — 夜战或迷雾中感知增强。",
+  "手稳 — 工艺与箭术精确度高。",
+  "手快 — 拔出武器、应变速度极高。",
+  "嗜血 — 处决敌人时获得额外士气。",
+  "慈悲 — 容易赢得民心，但对敌心软。",
+  "宗信 — 对圣乔治信仰坚定，荣誉值提升迅速。",
+  "怀疑 — 抵抗洗脑与精神控制几率提升，但荣誉值提升缓慢。"
+];
+
+const skillPool = [
+  "剑术 — 贵族之剑非屠杀工具，而是荣耀与信仰的延伸，但其用于狭窄房间的战斗十分强大。",
+  "长矛术 — 骑士的主技，用于冲锋、决斗与仪仗护卫。",
+  "格鲁吉亚法典 — 通晓《巴格拉季王室律》与教会裁决的条款。",
+  "宗教 — 有丰富的东正教知识。",
+  "外交与使节术 — 懂得在拜占庭、波斯或草原诸汗之间维系平衡，并擅长其语言。",
+  "骑乘弓术 — 山地骑士独有的技法，能在疾驰中精准射击。",
+  "重甲指挥 — 懂得布阵与协调步兵、盾手与弓骑的进退。",
+  "石堡建造术 — 设计山堡与塔楼的防御结构，懂得攻守要点。",
+  "攻城器械建造术 — 设计攻城器械。",
+  "战地牧灵 — 在战场上为士卒祈祷、告解与安魂。",
+  "诗与史歌 — 能吟诵本家祖先的英雄史诗，以激励部众。",
+  "医药与草本识别 — 知晓伤口处理与驱热草药的使用。",
+  "格鲁吉亚语与希腊语 — 精通宫廷与教会通用语，用于诏令与经文。",
+ "圣像崇敬 — 识别圣像象征与绘制规范，懂得其神学寓意。",
+ "圣物保管术 — 负责保管教会圣物与祖传遗物的礼法。",
+ "战马繁育学 — 培育适应高原地形的骏马，懂得血统与饲料配比。",
+ "游泳 — 掌握河谷与冰水中生存的技巧，能在渡河战中保全自身。",
+ "攀爬术 — 熟悉山岩、城墙与修道塔的攀登技巧，常用于突袭与逃生。",
+ "潜行术 — 在夜色、废墟或森林中隐匿行动的能力，用于侦察或暗袭。",
+ "化妆术 — 擅长易容。"
+
+ 
+];
+
+// 家传宝物池：名称、描述、荣誉变化、威名变化
+const relicPool = [
+  { name: "圣乔治的银质十字架", desc: "被教会承认的圣物，据说曾庇护国王鲁斯丹于战火中。", honor: +5, fame: +1 },
+  { name: "敌酋头盖骨酒杯", desc: "由蒙古将领的头骨镶银制成，象征复仇与勇武，但亵渎圣教。", honor: -4, fame: +6 },
+  { name: "家族的断裂长剑", desc: "曾用于弑兄之战的古剑，传说剑锋沾血不锈。", honor: -2, fame: +3 },
+  { name: "鹿角战盔", desc: "以山鹿巨角装饰的战盔，象征狩猎王者的威仪。", honor: 0, fame: +4 },
+  { name: "被封印的异教石偶", desc: "古老的异教遗物，藏于地窖，能赐胜亦能引诅咒。", honor: -6, fame: +2 },
+{ name: "圣母之泪圣瓶", desc: "传自修道院的水晶瓶，据说内藏圣母流下的一滴泪。", honor: +7, fame: 0 },
+  { name: "狮纹金指环", desc: "家族继承戒，象征正统血脉，佩戴者在贵族中更具威信。", honor: +3, fame: +3 },
+  { name: "血色披风", desc: "由敌将披风染血制成，据说能激发战士狂热。", honor: -3, fame: +5 },
+  { name: "黑曜祈祷珠", desc: "以火山黑曜石雕刻，每颗珠子刻有圣徒名，但部分为异教文。", honor: -1, fame: +2 },
+  { name: "圣徒之骨护符", desc: "小型骨匣，内藏无名圣徒遗骨碎片，带来奇迹与恐惧。", honor: +2, fame: +1 },
+
+  { name: "日焰圣剑", desc: "剑刃刻有太阳徽纹，反射光如烈焰，据说能灼烧恶魔。", honor: +6, fame: +4 },
+  { name: "夜莺之铃", desc: "从拜占庭传来的小铃，夜晚摇响可召回失散的士兵。", honor: +1, fame: +3 },
+  { name: "战神之矛残片", desc: "据说是亚美尼亚圣战遗物，触之者血液会沸腾。", honor: -5, fame: +7 },
+  { name: "王权短刃", desc: "镶嵌红玉的仪式短刃，仅在宣誓或裁决时使用。", honor: +4, fame: +2 },
+  { name: "断罪之镣", desc: "古老铁链遗物，据说锁过背叛的骑士，能令敌人心生恐惧。", honor: -3, fame: +3 },
+
+  { name: "圣火灯盏", desc: "长明的铜灯，火焰据说取自耶路撒冷圣墓，象征永恒信仰。", honor: +8, fame: 0 },
+  { name: "血誓酒杯", desc: "每代家主饮下后立誓效忠祖先，若违誓则血液凝固。", honor: -2, fame: +6 },
+  { name: "雪狮披肩", desc: "由高加索白狮皮制成，象征王者孤傲与不屈。", honor: +2, fame: +5 },
+  { name: "圣图书残页", desc: "自亚历山大修道院流出的残卷，载有禁忌的启示。", honor: -4, fame: +4 },
+  { name: "沉睡骑士的面盔", desc: "据说佩戴者梦中会听到古代战士的低语。", honor: -1, fame: +3 }
+];
+
+
+const regionPool = [
+  {
+    name: "卡赫季（Kakheti）",
+    lat: 41.65,
+    lon: 45.65,
+    terrain: "位于格鲁吉亚的极东之地，阿拉兹河在此蜿蜒成银色的边界线，将大高加索山脉的阴影与阿尔达比勒高原的热风分隔开来。北面群山如墙，南面则展开成广阔的冲积平原，阿拉维河谷贯穿其间，葡萄藤密布其上，如一片被阳光点燃的绿海。这里气候干暖，年降水仅六至八百毫米，夏日炽热，冬季干冷。",
+    specialty: "全境每年可收获约两万二千吨食物，当中不仅有谷粒，也有来自牧场的牛羊与蜂蜜。盐矿沿阿拉兹河散布，出盐约二百吨，足以供养整个东部的城镇。当地的葡萄酒最为闻名，年酿十二万升，烈度高而风味深厚。偶尔从河谷砂中可淘得细金约零点零五吨，银约零点一吨。牧人饲养的马匹近九百匹，多数被蒙古骑军征用。",
+    family: "统治此地的是安德罗尼卡什维利（Andronikashvili）家族。他们称自己为“东境守护者”，在蒙古铁骑面前仍保持着古老的骑兵荣誉。他们的军队以重装骑兵与中骑射手为主，铠甲厚重，披甲马匹耐热耐渴，能够在平原上长途机动。卡赫季骑士的进攻方式讲究“正面突击后转环包抄”，类似早期拜占庭重骑兵的作风。他们不擅山战或狭窄地形作战，却能在开阔地正面击溃敌阵。酒与盐是他们的后勤核心，长途行军可凭酒液代水，盐则用以保存肉干。卡赫季的士兵多信仰圣乔治，作战前常饮烈酒以示无惧。"
+  },
+  {
+    name: "赫雷蒂（Hereti）",
+    lat: 41.55,
+    lon: 46.1,
+    terrain: "卡赫季以东，是丘陵起伏、河流密织的赫雷蒂。伊奥里与阿尔加维两条河自北而南流过，使这片土地富饶湿润，土壤呈褐色与灰壤交错，散发出一种潮湿的肥力。西接卡赫季，东望阿尔扎赫高原，南抵塔利什山岭，几乎是一块被群山环抱的绿谷。",
+    specialty: "赫雷蒂是一片湿润的平原，伊奥里河与阿尔加维河共同灌溉出格鲁吉亚最广袤的粮仓。这里的谷物与畜产丰盈，每年可得二万八千吨食物当量。盐产较少，仅约八十吨，却足以维持军粮贮存。小修道院出产的葡萄酒略带泥香，每年约有三万升。山脚的工坊偶尔能炼出少量铁与银，约零点三吨铁与零点零五吨银，但远不足以维持冶炼之业。牧民饲养的马匹约四百匹，多为耕用与驮运。",
+    family: "统治家族瓦赫纳泽（Vachnadze）以善用车队闻名，他们的车辙遍布高原与平原，也正是他们最频繁地与卡赫季的边防骑士交战。赫雷蒂的士兵生于谷地，食用大麦、酸奶与腌肉，他们身形结实、耐久持久。地势平缓，灌溉丰沛，使这里的军队更适合步兵与车阵战术。赫雷蒂的战车沿袭古老的高加索传统，由橡木与胡桃木制成，拉车的多为骡与小马，用以运载弩手与弓兵。他们的军制崇尚阵列秩序，而非骑士个人英雄主义。由于与卡赫季的长期摩擦，他们的弓手习惯于对抗骑兵，以盾阵 + 弩射 + 短矛防御为主要作战模式。他们的士兵在平原战中防御力强，但不善冲锋，作战风格保守。"
+  },
+  {
+    name: "伊梅列季（Imereti）",
+	lat: 42.25, 
+    lon: 42.7, 
+    terrain: "若从东方的山口翻越而下，西方的伊梅列季便像一个温润的盆地，安卧在群山之中。里奥尼河穿过肥沃的谷地，将黑海的湿气带入这片被山环绕的领地。北有山岭护卫，南为姆塔克瓦里丘陵，西向黑海平原敞开，东接卡尔特里之地。",
+    specialty: "在黑海的湿润气流笼罩下，伊梅列季的土地每年吐出最丰盈的收获。雨水在山间积蓄，流入里奥尼谷地，灌溉出约三万五千吨的食物产出，是整个王国的粮食之腹。山地盐泉的出盐量约一百吨。这里出产的甜酒每年可酿五万升，香气温和。铁匠铺中炉火不熄，年炼铁三十吨，为东部军团提供铁制铠甲与农具。山中还藏有少量金与银，分别约零点二与零点四吨。马匹约五百匹，多为农战兼用之种。",
+    family: "统治伊梅列季的是巴格拉季奥尼（Bagrationi）王族的残系，他们仍自称国王，但其王权仅限于库塔伊西。伊梅列季的湿润气候养育出强壮的农兵与修道士战士。这里的食物以黑麦与蜂蜜为主，富含能量却不易保存，因此他们的军队往往依靠短期征召，打完即散。其战术风格偏向步兵突击与山地包抄。山间的充足的铁矿工坊使得他们能自铸长矛与盾牌，盔甲厚实，兵员数量充足。伊梅列季的士兵以体格闻名，能在雨中行军数十里不休；他们的盾阵密不透风，常在狭谷阻击敌骑。由于多与西部萨梅格雷罗贸易，他们习惯于防御性战争与据点防守。他们的军旗多绘有“里奥尼河之鱼”，象征湿土与军人的耐心。"
+  },
+  {
+    name: "萨梅格雷罗（Samegrelo）",
+	lat: 42.5, 
+    lon: 42.1, 
+    terrain: "黑海之滨的萨梅格雷罗终年湿润，潮气在林间缠绕。恩格里河自北方雪山奔流而下，汇入霍比平原，平原再向西延伸至波涛的尽头。这里的土地低洼而富饶，河水常年泛滥，留下厚重的冲积层。",
+    specialty: "黑海沿岸的萨梅格雷罗终年潮湿，空气中混着海盐与松木的气息。这里的耕地并不广阔，年产食物约一万八千吨，依靠渔猎弥补不足。盐田遍布沿岸，年出盐一百五十吨，为格鲁吉亚西部最稳定的盐源。葡萄虽能生长，却因气候过湿，每年仅得两万升酒，风味柔弱。森林铁矿偶尔炼得十吨粗铁，金与银皆寥寥，仅零点零五与零点一吨。马匹约三百匹，多为沿海驿骑。",
+    family: "大地亚尼（Dadiani）家族统治着此地，他们的领地虽属格鲁吉亚名义，但他们的财富早已独立，更多来自黑海与拜占庭的商路。靠海的湿地孕育出一种灵活而诡秘的作战方式。萨梅格雷罗的民众以鱼与盐为食，体质精瘦，却极为敏捷。他们的部队多为轻步兵与海岸侦察兵，擅长夜战与潜袭。他们的剑短而弯，常涂以盐水防锈，反射光芒刺目。在森林与湿地间，他们使用小舟伏击敌人，或由海路突袭内陆补给线。由于地势低洼，他们无法支撑大规模骑兵，也缺乏金属护具，但弓与矛皆精致灵巧。萨梅格雷罗的军人信奉“流动胜于抵抗”，在他们的哲学中，水才是最强的武器。他们在夜色中战斗，如同海雾之影，是格鲁吉亚唯一能进行水陆协同的部族军。"
+  },
+  {
+    name: "萨梅茨赫（Samtskhe）",
+    lat: 41.5833,
+    lon: 43.2667,
+    terrain: "南方的高原自古便是通往安纳托利亚的要道。这里的山势高耸，梅斯赫季山脉纵贯东西，山谷深处寒风呼啸。北连伊梅列季，东抵卡尔特里，南方的山口通向今日的卡尔斯地区。地势高峻，平均海拔在一千二至二千五百米之间。冬季漫长而严酷，积雪厚达一米。",
+    specialty: "萨梅茨赫高原的铁矿几乎养活了整个王国的战争机器，年产铁高达八千吨。金与银伴生于矿脉中，年得零点三吨金与零点五吨银。粮食虽少，牧草却茂，年产食物约二万五千吨，多来自牛羊肉与乳品。盐需自外地贸易输入，年约六十吨。山中亦有酒窖，每年酿得一万五千升葡萄酒，辛烈难饮，却能久存。全境养马逾一千二百匹，马匹高大，是格鲁吉亚的骑兵之源。",
+    family: "统治家族贾克利（Jaqeli）在蒙古征服后第一个宣誓效忠，因此得以保留军权。他们是南方的封臣，也是格鲁吉亚最强大的地方贵族。此地的士兵以重装步兵与重骑兵混编军著称。因为铁器充足，他们全副武装，甚至连弓兵都有胸甲。粮草以肉与乳为主，使他们的战力在短期爆发中极强。他们的军马高大，能负载全甲骑士，冲锋力极强。萨梅茨赫军在高原上几乎无敌，他们的铁蹄能碾碎山地部族，也能阻断蒙古骑兵的突进。"
+  },
+  {
+    name: "斯瓦涅季（Svaneti）",
+	lat: 43.05, 
+	lon: 42.7, 
+    terrain: "在北方的高加索山腹，斯瓦涅季如同被雪封印的王国。大高加索山脉南坡形成天然的壁垒，西邻阿布哈兹山地，南面则越过山岭通往伊梅列季。此地高寒，海拔在一千八至三千米之间。冬雪覆盖半年，气候严酷却纯净。",
+    specialty: "北方的斯瓦涅季如同封印在冰雪中的孤国。食物产量稀薄，每年约九千吨，多依赖蜂蜜与猎肉维生。盐由山泉蒸取，仅三十吨。修士在岩洞中自酿少量葡萄酒，不足五千升。山间冶炼每年出铁约五吨，金约零点三吨，银零点一吨。马匹不过二百匹，却能攀越岩岭。",
+    family: "格洛瓦尼（Gelovani）家族世袭统治此地，他们兼任修士与武士，奉圣乔治为守护神，其信仰与刀锋同样锋利。在冰雪与岩壁间成长的斯瓦涅人，食物匮乏而坚硬。他们以猎肉、蜂蜜与粗面包维生。缺乏马匹，使他们发展出高山游击与斧兵传统。他们的士兵轻装短程，能攀登三千米雪岭，携带武器与补给自足。斯瓦涅人以宗教狂热著称，战前常于雪中祈祷，认为阵亡者将被圣乔治亲迎入天，所以士气极高，几乎从不溃退。他们使用的战斧短柄重刃工艺，既可破甲，也能碎骨。敌人畏惧他们的静默行军——在雪中，他们往往能无声逼近敌人。他们的军队规模小，却能在险地抵抗数倍之敌，是格鲁吉亚山地的天然堡垒。"
+  },
+  {
+    name: "拉查（Racha）",
+	lat: 42.67, 
+	lon: 43.15, 
+    terrain: "拉查位于格鲁吉亚的中北部，北依大高加索山麓，西连伊梅列季，东接卡尔特里。雷查河为里奥尼的支流，自高山流出，贯穿全境，滋养了山谷的林地与村庄。",
+    specialty: "位于中北山地的拉查是格鲁吉亚最宁静的地方。雷查河的水滋养着牧场与林地，年产食物约一万二千吨，多为乳酪与畜肉。山泉盐矿每年出盐八十吨。山谷的葡萄酒甜而浓厚，年酿一万升。矿工从山体中开采出五十吨铁与零点一吨金、零点一二吨银。马匹约三百匹，多为运输与山地侦察所用。",
+    family: "统治者奇赫伊泽（Chkheidze）家族以坚韧著称，他们的石堡高悬在山谷之上，孤立却固若金汤。雷查河谷的士兵以乳酪、肉干与盐生存，体魄结实，行军持久。地形崎岖，使他们发展出防御型山地弓兵传统。他们的弓由铁杉与山羊角制成，拉力强劲，射程远。拉查军善于利用峡谷与林线设伏，常在敌人疲惫时突袭后军。他们的马匹虽小，却能负重穿越山岭。据说奇赫伊泽家族训练出的弓手能在百步外射穿铁盔。"
+  }
+];
+
+let honor = 5;
+let fame = 0;
+let selectedRelic = null;   
+let selectedRegion = null; 
+let selectedGenes = [];
+let selectedSkills = [];
+
+
+function getRandomItems(array, count) {
+  return array.sort(() => 0.5 - Math.random()).slice(0, count);
+}
+
+function generateGenes() {
+  selectedGenes = getRandomItems(genePool, 3);
+  document.getElementById('gene-list').innerHTML = selectedGenes.map(g => `<li>${g}</li>`).join('');
+}
+
+function generateSkills() {
+  selectedSkills = getRandomItems(skillPool, 3);
+  document.getElementById('skill-list').innerHTML = selectedSkills.map(s => `<li>${s}</li>`).join('');
+}
+
+function generateRelics() {
+  const relics = getRandomItems(relicPool, 5);
+  document.getElementById('relic-list').innerHTML = relics.map(r => {
+    const honorText = r.honor >= 0 ? `+${r.honor}` : `${r.honor}`;
+    const fameText = r.fame >= 0 ? `+${r.fame}` : `${r.fame}`;
+    return `<li>
+      <button onclick="selectRelic(${r.honor},${r.fame},'${r.name}','${r.desc}')">${r.name}</button>
+      — ${r.desc} <br>
+      <span style="color:#c9a44f;">（荣誉 ${honorText}，威名 ${fameText}）</span>
+    </li>`;
+  }).join('');
+}
+
+function selectRelic(h, f, name, desc) {
+  if (selectedRelic) {
+    alert("你已选择宝物，无法更改。");
+    return;
+  }
+  selectedRelic = { name, desc, h, f };
+  honor += h;
+  fame += f;
+  document.getElementById('honor').innerText = honor;
+  document.getElementById('fame').innerText = fame;
+  document.getElementById('selected-relic').innerHTML =
+    `<strong>已选择宝物：</strong> ${name}（${desc}）<br>荣誉变化：${h >= 0 ? "+"+h : h}　威名变化：${f >= 0 ? "+"+f : f}`;
+}
+
+function generateRegion() {
+ selectedRegion = regionPool[Math.floor(Math.random() * regionPool.length)];
+  document.getElementById('region').innerHTML = `
+    <p><strong>地区：</strong> ${selectedRegion.name}</p>
+    <p><strong>地形：</strong> ${selectedRegion.terrain}</p>
+    <p><strong>特产：</strong> ${selectedRegion.specialty}</p>
+    <p><strong>统治家族：</strong> ${selectedRegion.family}</p>
+  `;
+  updateMap(selectedRegion.name);  // 更新地图位置
+}
+
+// 地图对象（全局）
+let map, marker, circle;
+
+function initMap() {
+  // 初始化地图
+  map = L.map('map').setView([41.7, 43.3], 7);
+
+  // 添加底图
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  // 载入你导出的 Google Earth 边界文件（KML）
+  // 如果 KML 文件与 index.html 同目录，只需写文件名即可
+  const kmlLayer = omnivore.kml("georgia_13th.kml")
+    .on('ready', function() {
+      // 自动缩放视野到 KML 区域范围
+      map.fitBounds(kmlLayer.getBounds());
+      console.log(" KML 文件已成功加载并显示。");
+    })
+    .on('error', function(e) {
+      console.error("KML 加载错误：", e);
+      alert("地图文件加载失败，请检查 KML 路径或文件名是否正确。");
+    })
+    .addTo(map);
+
+  // 初始标记（萨梅茨赫）
+  marker = L.marker([41.5833, 43.2667]).addTo(map)
+    .bindPopup("<b>萨梅茨赫（Samtskhe）</b><br>伊尔卡斯的核心领地，高原与铁矿之地。")
+    .openPopup();
+
+  // 环形标识区
+  circle = L.circle([41.5833, 43.2667], {
+    color: 'gold',
+    fillColor: '#c9a44f55',
+    fillOpacity: 0.5,
+    radius: 50000
+  }).addTo(map);
+
+  // 比例尺
+  L.control.scale().addTo(map);
+}
+// 更新地图显示到当前领地
+function updateMap(regionName) {
+  if (!map) return; // 防止 map 未初始化时报错
+  const found = regionPool.find(r => regionName.includes(r.name.split('（')[0]));
+  if (!found) return;
+  const { lat, lon } = found;
+  map.setView([lat, lon], 8);
+  marker.setLatLng([lat, lon]);
+  circle.setLatLng([lat, lon]);
+  marker.setPopupContent(`<b>${regionName}</b><br>格鲁吉亚的领地之一。`).openPopup();
+}
+
+function generateProfile() {
+  const name = document.getElementById("name").value || "（未命名）";
+  const gender = document.getElementById("gender").value || "（未知）";
+  const age = document.getElementById("age").value || "（不详）";
+
+  if (!selectedRegion) selectedRegion = { name: "（未知领地）", family: "（无家族）" };
+  const relicText = selectedRelic ? `${selectedRelic.name}（${selectedRelic.desc}）` : "（未选择）";
+
+  const profile = `
+【角色档案】
+姓名：${name}　性别：${gender}　年龄：${age}
+领地：${selectedRegion.name}　家族：${selectedRegion.family}
+荣誉值：${honor}　威名值：${fame}
+
+【家传宝物】
+${relicText}
+
+【基因特征】
+${selectedGenes.join("；")}
+
+【主要技能】
+${selectedSkills.join("；")}
+  `.trim();
+
+  document.getElementById("profile-output").value = profile;
+}
+
+function copyProfile() {
+  const text = document.getElementById("profile-output").value;
+  if (!text.trim()) {
+    alert("请先生成角色档案！");
+    return;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    alert("已复制到剪贴板！");
+  }).catch(err => {
+    console.error("复制失败：", err);
+    alert("复制失败，请手动选择文本复制。");
+  });
+}
+
+// 初始化顺序（先地图，再生成数据）
+initMap();
+generateGenes();
+generateSkills();
+generateRegion();
+generateRelics();
+</script>
+
+</body>
+</html>
