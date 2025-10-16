@@ -338,7 +338,7 @@ function initMap() {
 
   // 载入你导出的 Google Earth 边界文件（KML）
   // 如果 KML 文件与 index.html 同目录，只需写文件名即可
- const kmlLayer = omnivore.kml("https://lutpulla0.github.io/georgia-map/georgia_13th.kml")
+ const kmlLayer = omnivore.kml("https://raw.githubusercontent.com/Lutpulla0/georgia-map/refs/heads/main/georgia_13th.kml")
     .on('ready', function() {
     try {
       map.fitBounds(kmlLayer.getBounds());
